@@ -30,11 +30,20 @@
 #ifndef LTHREAD_INT_H
 #define LTHREAD_INT_H
 
+#if defined (__i386__) || defined (__x86_64__)
+#define LTHREAD_USE_UCONTEXT 0
+#else
+#define LTHREAD_USE_UCONTEXT 1
+#endif
+
 #include <sys/time.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <pthread.h>
 #include <time.h>
+#if LTHREAD_USE_UCONTEXT
+#include <ucontext.h>
+#endif
 
 #include "lthread_poller.h"
 #include "queue.h"
@@ -69,6 +78,9 @@ struct cpu_ctx {
     void     *r3;
     void     *r4;
     void     *r5;
+#if LTHREAD_USE_UCONTEXT
+    ucontext_t uc;
+#endif
 };
 
 enum lthread_event {

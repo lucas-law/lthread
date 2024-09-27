@@ -110,6 +110,14 @@ __asm__ (
 "       movq %rax, (%rsp)                                \n"
 "       ret                                              \n"
 );
+#elif LTHREAD_USE_UCONTEXT
+int _switch(struct cpu_ctx *new_ctx, struct cpu_ctx *cur_ctx) {
+    if (swapcontext(&cur_ctx->uc, &new_ctx->uc) == -1) {
+        perror("swapcontext");
+        exit(EXIT_FAILURE);
+    }
+    return 0;
+}
 #endif
 
 static void
@@ -246,6 +254,13 @@ _lthread_init(struct lthread *lt)
     lt->ctx.ebp = (void *)stack - (3 * sizeof(void *));
     lt->ctx.eip = (void *)_exec;
     lt->state = BIT(LT_ST_READY);
+#if LTHREAD_USE_UCONTEXT
+    getcontext(&lt->ctx.uc);
+    lt->ctx.uc.uc_stack.ss_sp = lt->stack;
+    lt->ctx.uc.uc_stack.ss_size = lt->stack_size;
+    lt->ctx.uc.uc_link = NULL;
+    makecontext(&lt->ctx.uc, (void (*)(void))_exec, 1, lt);
+#endif
 }
 
 void
@@ -531,7 +546,7 @@ void
 lthread_set_funcname(const char *f)
 {
     struct lthread *lt = lthread_get_sched()->current_lthread;
-    strncpy(lt->funcname, f, 64);
+    strncpy(lt->funcname, f, sizeof (lt->funcname) - 1);
 }
 
 uint64_t
